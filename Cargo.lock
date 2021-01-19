@@ -3280,7 +3280,7 @@ dependencies = [
  "pallet-grandpa",
  "pallet-randomness-collective-flip",
  "pallet-sudo",
- "pallet-template",
+ "pallet-timekeeper",
  "pallet-timestamp",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
@@ -3589,7 +3589,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-template"
+name = "pallet-timekeeper"
 version = "2.0.0"
 dependencies = [
  "frame-support",
