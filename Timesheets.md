@@ -1,24 +1,32 @@
 ## Timesheets
 
 - Users are registered to be able to sign their timesheet
-- A user would have details such as employee number, name, address and hourly rate
+- A user is an account and would be anonymous
+- A record of time sheet entries would be stored onchain
+- An administrator would add users to a whitelist to access the chain
 - They would 'enter' and at that point they would have a sign in time.  
 - They can only 'exit' if they have entered.
 - There would be a maximum time one can be in the state 'enter' after which their
 state would be set back to 'exit'.  This would be configurable, with a default of 8.
 - After each day a payroll would be scheduled to credit those that have worked based on an hourly rate.
 - The payroll would be funded with the treasury, maybe...
-- We have an admin that adds a user
 
 Why - combined with IoT and remote woring it would allow trustable and flexible work.  It would allow for
 payment to be sent on a daily basis.
 
+### Storage
+
+- Administrators => list of accounts who can administer users and change rates
+- Map of Account => hourly rate
+- Map of Account => number of hours not paid
+- Map of Account => Timesheet entry
+
 ### Events
 
-UserRegistered(user_id: u32, user: User)
-UserEntered(user_id, user: User, time: Time)
-UserExited(user_id, user: User, time: Time)
-UserPaid(user_id)
+UserRegistered(account: Account)
+UserEntered(account: Account, time: Time)
+UserExited(account: Account, time: Time)
+UserPaid(account: Account)
 
 ### Errors
 
@@ -30,8 +38,8 @@ FailedToExit
 
 ### Calls
 
-/// Register a user, the origin should be root
-fn register_user(origin, user: User)
+/// Register a user, the origin should be the administrator
+fn register_user(origin, account: Account)
 /// Enter as a user, fails if we aren't registered or we are already entered
 fn enter_user(origin)
 /// Exit as a user, fails if we aren't registered or we are already exited
