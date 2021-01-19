@@ -23,14 +23,16 @@ payment to be sent on a daily basis.
 
 ### Events
 
-UserRegistered(account: Account)
-UserEntered(account: Account, time: Time)
-UserExited(account: Account, time: Time)
-UserPaid(account: Account)
+AccountRegistered(Account, amount)
+AccountEntered(Account, time: Time)
+AccountExited(Account, time: Time)
+AccountPaid(Account)
+AdministratorAdded(Account)
+AdministratorRemoved(Account)
 
 ### Errors
 
-InvalidUser
+InvalidAccount
 FailedPayment
 FailedRegister
 FailedToEnter
@@ -39,13 +41,13 @@ FailedToExit
 ### Calls
 
 /// Register a user, the origin should be the administrator
-fn register_user(origin, account: Account)
+fn register_account(origin, account: Account, value: u32)
 /// Enter as a user, fails if we aren't registered or we are already entered
-fn enter_user(origin)
+fn enter_account(origin)
 /// Exit as a user, fails if we aren't registered or we are already exited
-fn exit_user(origin)
+fn exit_account(origin)
 /// Update rate of user, this should be multisigned by both admin and user
-fn update_rate_user(origin, user_id, rate: Rate)
+fn update_rate_account(origin, account: Account, rate: Rate)
 
 ### Other
 
