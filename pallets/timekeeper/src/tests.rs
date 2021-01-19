@@ -1,23 +1,14 @@
-use crate::{Error, mock::*};
+use crate::{
+	RawEvent, 
+	mock::*
+};
 use frame_support::{assert_ok, assert_noop};
 
 #[test]
-fn it_works_for_default_value() {
+fn it_works_registering_a_user() {
 	new_test_ext().execute_with(|| {
-		// Dispatch a signed extrinsic.
-		assert_ok!(TimeKeeperModule::do_something(Origin::signed(1), 42));
-		// Read pallet storage and assert an expected result.
-		assert_eq!(TimeKeeperModule::something(), Some(42));
-	});
-}
-
-#[test]
-fn correct_error_for_none_value() {
-	new_test_ext().execute_with(|| {
-		// Ensure the expected error is thrown when no value is present.
-		assert_noop!(
-			TimeKeeperModule::cause_error(Origin::signed(1)),
-			Error::<Test>::NoneValue
-		);
+		assert_ok!(TimeKeeperModule::register_account(Origin::signed(100), 101, Some(10)));
+		assert_eq!(TimeKeeperModule::rates(&101), Some(10));
+		assert_eq!(last_event(), Event::timekeeper(RawEvent::AccountRegistered(101, Some(10))));
 	});
 }
