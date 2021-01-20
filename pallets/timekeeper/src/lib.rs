@@ -20,7 +20,7 @@ decl_storage! {
 		/// Store the rate for an account
 		pub Rates get(fn rates): map hasher(blake2_128_concat) T::AccountId => Option<Value>;
 		/// Store a whitelist of administrators
-		pub Administrators get(fn adminstrators): map hasher(blake2_128_concat) T::AccountId => Option<bool>;		
+		pub Administrators get(fn adminstrators): map hasher(blake2_128_concat) T::AccountId => Option<bool>;
 	}
 }
 
@@ -29,6 +29,7 @@ decl_event!(
 		/// An account has been registered with an hourly rate
 		/// [account, value]
 		AccountRegistered(AccountId, Option<Value>),
+		AccountUpdated(AccountId, Option<Value>),
 	}
 );
 
@@ -52,14 +53,22 @@ decl_module! {
 		pub fn register_account(origin, account: T::AccountId, value: Option<Value>) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 			// TODO check if the origin is in the whitelist
-			Self::set_rate(account, value)
+			Rates::<T>::mutate_exists(&account, |v| *v = value);
+			// Emit an event.
+			Self::deposit_event(RawEvent::AccountRegistered(account, value));
+			// Return a successful DispatchResult
+			Ok(())
 		}
 
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn update_rate_for_account(origin, account: T::AccountId, value: Option<Value>) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 			// TODO who here has to be a transaction signed by an administrator and the account holder
-			Self::set_rate(account, value)
+			Rates::<T>::mutate_exists(&account, |v| *v = value);
+			// Emit an event.
+			Self::deposit_event(RawEvent::AccountUpdated(account, value));
+			// Return a successful DispatchResult
+			Ok(())
 		}
 
 		/// An example dispatchable that may throw a custom error.
@@ -82,15 +91,5 @@ decl_module! {
 
 			Ok(())
 		}
-	}
-}
-
-impl<T: Trait> Module<T> {
-	fn set_rate(account: T::AccountId, value:Option<Value>) -> dispatch::DispatchResult {
-		Rates::<T>::mutate_exists(&account, |v| *v = value);
-		// Emit an event.
-		Self::deposit_event(RawEvent::AccountRegistered(account, value));
-		// Return a successful DispatchResult
-		Ok(())
 	}
 }
