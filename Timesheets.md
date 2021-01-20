@@ -47,7 +47,7 @@ fn enter_account(origin)
 /// Exit as a user, fails if we aren't registered or we are already exited
 fn exit_account(origin)
 /// Update rate of user, this should be multisigned by both admin and user
-fn update_rate_account(origin, account: Account, rate: Rate)
+fn update_rate_for_account(origin, account: Account, value: u32)
 
 ### Other
 

@@ -52,11 +52,14 @@ decl_module! {
 		pub fn register_account(origin, account: T::AccountId, value: Option<Value>) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 			// TODO check if the origin is in the whitelist
-			Rates::<T>::mutate_exists(&account, |v| *v = value);
-			// Emit an event.
-			Self::deposit_event(RawEvent::AccountRegistered(account, value));
-			// Return a successful DispatchResult
-			Ok(())
+			Self::set_rate(account, value)
+		}
+
+		#[weight = 10_000 + T::DbWeight::get().writes(1)]
+		pub fn update_rate_for_account(origin, account: T::AccountId, value: Option<Value>) -> dispatch::DispatchResult {
+			let who = ensure_signed(origin)?;
+			// TODO who here has to be a transaction signed by an administrator and the account holder
+			Self::set_rate(account, value)
 		}
 
 		/// An example dispatchable that may throw a custom error.
@@ -79,5 +82,15 @@ decl_module! {
 
 			Ok(())
 		}
+	}
+}
+
+impl<T: Trait> Module<T> {
+	fn set_rate(account: T::AccountId, value:Option<Value>) -> dispatch::DispatchResult {
+		Rates::<T>::mutate_exists(&account, |v| *v = value);
+		// Emit an event.
+		Self::deposit_event(RawEvent::AccountRegistered(account, value));
+		// Return a successful DispatchResult
+		Ok(())
 	}
 }
