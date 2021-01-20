@@ -21,6 +21,8 @@ decl_storage! {
 		pub Rates get(fn rates): map hasher(blake2_128_concat) T::AccountId => Option<Value>;
 		/// Store a whitelist of administrators
 		pub Administrators get(fn adminstrators): map hasher(blake2_128_concat) T::AccountId => Option<bool>;
+		/// Store a list of creditors for work done
+		pub Creditors get(fn creditors): map hasher(blake2_128_concat) T::AccountId => Option<Value>;
 	}
 }
 
