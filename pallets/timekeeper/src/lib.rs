@@ -23,6 +23,8 @@ decl_storage! {
 		pub Administrators get(fn adminstrators): map hasher(blake2_128_concat) T::AccountId => Option<bool>;
 		/// Store a list of creditors for work done
 		pub Creditors get(fn creditors): map hasher(blake2_128_concat) T::AccountId => Option<Value>;
+		/// Map whether account is in or out
+		pub Entered get(fn entered): map hasher(blake2_128_concat) T::AccountId => Option<bool>;
 	}
 }
 
@@ -32,16 +34,17 @@ decl_event!(
 		/// [account, value]
 		AccountRegistered(AccountId, Option<Value>),
 		AccountUpdated(AccountId, Option<Value>),
+		AccountEntered(AccountId),
+		AccountExited(AccountId),
+
 	}
 );
 
 // Errors inform users that something went wrong.
 decl_error! {
 	pub enum Error for Module<T: Trait> {
-		/// Error names should be descriptive.
-		NoneValue,
-		/// Errors should have helpful documentation associated with them.
-		StorageOverflow,
+		FailedToEnter,
+		FailedToExit,
 	}
 }
 
@@ -71,6 +74,50 @@ decl_module! {
 			Self::deposit_event(RawEvent::AccountUpdated(account, value));
 			// Return a successful DispatchResult
 			Ok(())
+		}
+
+		#[weight = 10_000 + T::DbWeight::get().writes(1)]
+		pub fn enter_account(origin) -> dispatch::DispatchResult {
+			let who = ensure_signed(origin)?;
+			match Self::entered(&who) {
+				Some(true) => {
+					Err(Error::<T>::FailedToEnter)?
+				},
+				_ => {
+					Entered::<T>::mutate_exists(&who, |v| *v = Some(true));
+					// Emit an event.
+					Self::deposit_event(RawEvent::AccountEntered(who));
+					// Return a successful DispatchResult
+					Ok(())
+				}
+			}
+		}
+
+		#[weight = 10_000 + T::DbWeight::get().writes(1)]
+		pub fn exit_account(origin) -> dispatch::DispatchResult {
+			let who = ensure_signed(origin)?;
+			match Self::entered(&who) {
+				Some(true) => {
+					Entered::<T>::mutate_exists(&who, |v| *v = Some(false));
+					let rate = Self::rates(&who);
+					match rate {
+						Some(r) => {
+							Creditors::<T>::mutate_exists(&who, |credit| {
+								*credit = Some(credit.unwrap() + rate.unwrap())
+							});
+						},
+						_ => ()
+					}
+					
+					// Emit an event.
+					Self::deposit_event(RawEvent::AccountExited(who));
+					// Return a successful DispatchResult
+					Ok(())
+				},
+				_ => {
+					Err(Error::<T>::FailedToExit)?
+				}
+			}
 		}
 	}
 }
