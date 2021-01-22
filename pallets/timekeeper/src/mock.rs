@@ -17,6 +17,7 @@ impl_outer_event! {
 	pub enum Event for Test {
 		frame_system<T>,
 		timekeeper<T>,
+		pallet_balances<T>,
 	}
 }
 // Configure a mock runtime to test the pallet.
@@ -52,22 +53,45 @@ impl frame_system::Trait for Test {
 	type AvailableBlockRatio = AvailableBlockRatio;
 	type Version = ();
 	type PalletInfo = ();
-	type AccountData = ();
+	type AccountData = pallet_balances::AccountData<u64>;
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
 }
 
+parameter_types! {
+	pub const ExistentialDeposit: u64 = 1;
+}
+impl pallet_balances::Trait for Test {
+	type MaxLocks = ();
+	type Balance = u64;
+	type Event = Event;
+	type DustRemoval = ();
+	type ExistentialDeposit = ExistentialDeposit;
+	type AccountStore = System;
+	type WeightInfo = ();
+}
+
 impl Trait for Test {
 	type Event = Event;
+	type Currency = Balances;
 }
 
 pub type TimeKeeperModule = Module<Test>;
 pub type System = frame_system::Module<Test>;
+pub type Balances = pallet_balances::Module<Test>;
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    let mut t: sp_io::TestExternalities = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap().into();
+	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+
+    pallet_balances::GenesisConfig::<Test>{
+		balances: vec![(200, 500)],
+    }.assimilate_storage(&mut t).unwrap();
+
+    frame_system::GenesisConfig::default().assimilate_storage::<Test>(&mut t).unwrap();
+    
+	let mut t: sp_io::TestExternalities = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap().into();
     t.execute_with(|| System::set_block_number(1) );
     t
 }

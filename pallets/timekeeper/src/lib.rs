@@ -3,7 +3,7 @@
 use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, 
 	traits::{Get, Currency}
 };
-use frame_support::weights::{DispatchClass, FunctionOf, Pays};
+use frame_support::weights::{DispatchClass, Pays};
 use frame_system::ensure_signed;
 
 #[cfg(test)]
