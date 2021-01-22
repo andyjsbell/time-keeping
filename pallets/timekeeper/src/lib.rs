@@ -109,7 +109,7 @@ decl_module! {
 					match rate {
 						Some(r) => {
 							Creditors::<T>::mutate_exists(&who, |credit| {
-								*credit = Some(credit.unwrap() + r)
+								*credit = Some(credit.unwrap_or(0.into()) + r)
 							});
 						},
 						_ => ()
