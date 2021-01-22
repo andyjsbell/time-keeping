@@ -264,6 +264,7 @@ impl pallet_sudo::Trait for Runtime {
 /// Configure the timekeeper pallet in pallets/timekeeper.
 impl pallet_timekeeper::Trait for Runtime {
 	type Event = Event;
+	type Currency = Balances;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
