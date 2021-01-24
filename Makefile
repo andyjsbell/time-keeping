@@ -16,6 +16,9 @@ check:
 build:
 	SKIP_WASM_BUILD= cargo build
 
+build-pallet:
+	SKIP_WASM_BUILD= cargo build -p pallet-timekeeper
+
 test:
 	SKIP_WASM_BUILD= cargo test --all
 
