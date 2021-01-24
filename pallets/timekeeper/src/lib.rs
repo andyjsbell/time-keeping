@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, 
-	traits::{Get, Currency, ExistenceRequirement}
+	traits::{Get, Currency, ExistenceRequirement, Time}
 };
 use frame_support::weights::{DispatchClass, Pays};
 use frame_system::ensure_signed;
@@ -18,14 +18,16 @@ const PALLET_ID: ModuleId = ModuleId(*b"timekeep");
 
 type AccountIdOf<T> = <T as frame_system::Trait>::AccountId;
 type BalanceOf<T> = <<T as Trait>::Currency as Currency<AccountIdOf<T>>>::Balance;
+type MomentOf<T> = <<T as Trait>::Time as Time>::Moment;
 
 pub trait Trait: frame_system::Trait {
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 	type Currency: Currency<Self::AccountId>;
+	type Time: Time;
 }
 
 decl_storage! {
-	trait Store for Module<T: Trait> as TimeKeeperModule {
+	trait Store for Module<T: Trait> as TimeKeeper {
 		/// Store the rate for an account
 		pub Rates get(fn rates): map hasher(blake2_128_concat) T::AccountId => Option<BalanceOf<T>>;
 		/// Store a whitelist of administrators
@@ -33,7 +35,7 @@ decl_storage! {
 		/// Store a list of creditors for work done
 		pub Creditors get(fn creditors): map hasher(blake2_128_concat) T::AccountId => Option<BalanceOf<T>>;
 		/// Map whether account is in or out
-		pub Entered get(fn entered): map hasher(blake2_128_concat) T::AccountId => Option<bool>;
+		pub Entered get(fn entered): map hasher(blake2_128_concat) T::AccountId => Option<MomentOf<T>>;
 	}
 }
 
@@ -132,11 +134,12 @@ decl_module! {
 		pub fn enter_account(origin) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 			match Self::entered(&who) {
-				Some(true) => {
+				Some(_) => {
 					Err(Error::<T>::FailedToEnter)?
 				},
 				_ => {
-					Entered::<T>::mutate_exists(&who, |v| *v = Some(true));
+					let now = T::Time::now();
+					Entered::<T>::mutate_exists(&who, |v| *v = Some(now));
 					// Emit an event.
 					Self::deposit_event(RawEvent::AccountEntered(who));
 					// Return a successful DispatchResult
@@ -149,8 +152,8 @@ decl_module! {
 		pub fn exit_account(origin) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 			match Self::entered(&who) {
-				Some(true) => {
-					Entered::<T>::mutate_exists(&who, |v| *v = Some(false));
+				Some(timestamp) => {
+					Entered::<T>::mutate_exists(&who, |v| *v = None);
 					let rate = Self::rates(&who);
 					match rate {
 						Some(r) => {

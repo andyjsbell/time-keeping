@@ -265,6 +265,7 @@ impl pallet_sudo::Trait for Runtime {
 impl pallet_timekeeper::Trait for Runtime {
 	type Event = Event;
 	type Currency = Balances;
+	type Time = Timestamp;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -283,7 +284,7 @@ construct_runtime!(
 		TransactionPayment: pallet_transaction_payment::{Module, Storage},
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
 		// Include the custom logic from the time keeper pallet in the runtime.
-		TimeKeeperModule: pallet_timekeeper::{Module, Call, Storage, Event<T>},
+		TimeKeeper: pallet_timekeeper::{Module, Call, Storage, Event<T>},
 	}
 );
 
