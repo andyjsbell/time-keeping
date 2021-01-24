@@ -1,16 +1,20 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, 
-	traits::{Get, Currency}
+	traits::{Get, Currency, ExistenceRequirement}
 };
 use frame_support::weights::{DispatchClass, Pays};
 use frame_system::ensure_signed;
+use sp_runtime::ModuleId;
+use sp_runtime::traits::AccountIdConversion;
 
 #[cfg(test)]
 mod mock;
 
 #[cfg(test)]
 mod tests;
+
+const PALLET_ID: ModuleId = ModuleId(*b"timekeep");
 
 type AccountIdOf<T> = <T as frame_system::Trait>::AccountId;
 type BalanceOf<T> = <<T as Trait>::Currency as Currency<AccountIdOf<T>>>::Balance;
@@ -40,9 +44,11 @@ decl_event!(
 		/// An account has been registered with an hourly rate
 		/// [account, value]
 		AccountRegistered(AccountId, Option<Balance>),
+		AccountWithdrawl(AccountId, Balance),
 		AccountUpdated(AccountId, Option<Balance>),
 		AccountEntered(AccountId),
 		AccountExited(AccountId),
+		Deposit(Balance),
 	}
 );
 
@@ -51,6 +57,7 @@ decl_error! {
 	pub enum Error for Module<T: Trait> {
 		FailedToEnter,
 		FailedToExit,
+		FailedToWithdraw,
 	}
 }
 
@@ -80,6 +87,45 @@ decl_module! {
 			Self::deposit_event(RawEvent::AccountUpdated(account, value));
 			// Return a successful DispatchResult
 			Ok(())
+		}
+
+		#[weight = 10_000 + T::DbWeight::get().writes(1)]
+		pub fn deposit(origin, value: Option<BalanceOf<T>>) -> dispatch::DispatchResult {
+			let who = ensure_signed(origin)?;
+			T::Currency::transfer(
+				&who,
+				&Self::account_id(0),
+				value.unwrap(),
+				ExistenceRequirement::AllowDeath
+			)?;
+			// Emit an event.
+			Self::deposit_event(RawEvent::Deposit(value.unwrap()));
+			// Return a successful DispatchResult
+			Ok(())
+		}
+
+		#[weight = (10_000, DispatchClass::Normal, Pays::No)]
+		pub fn withdraw(origin) -> dispatch::DispatchResult {
+			let who = ensure_signed(origin)?;
+			match Self::creditors(&who) {
+				Some(balance) => {
+					Creditors::<T>::mutate_exists(&who, |b| *b = None);
+					T::Currency::transfer(
+						&Self::account_id(0),
+						&who,
+						balance,
+						ExistenceRequirement::AllowDeath
+					)?;
+
+					// Emit an event.
+					Self::deposit_event(RawEvent::AccountWithdrawl(who, balance));
+					// Return a successful DispatchResult
+					Ok(())
+				},
+				_ => {
+					Err(Error::<T>::FailedToWithdraw)?
+				}
+			}
 		}
 
 		#[weight = (10_000, DispatchClass::Normal, Pays::No)]
@@ -125,5 +171,15 @@ decl_module! {
 				}
 			}
 		}
+	}
+}
+
+impl<T: Trait> Module<T> {
+	/// The account ID
+	///
+	/// This actually does computation. If you need to keep using it, then make sure you cache the
+	/// value and only call this once.
+	pub fn account_id(index: u32) -> T::AccountId {
+		PALLET_ID.into_sub_account(index)
 	}
 }
