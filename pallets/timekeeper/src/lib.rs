@@ -1,12 +1,14 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, 
-	traits::{Get, Currency, ExistenceRequirement, Time}
-};
+use std::convert::TryInto;
+
+use frame_support::{debug, decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, traits::{Currency, ExistenceRequirement, Get, WithdrawReasons, WithdrawReason}};
 use frame_support::weights::{DispatchClass, Pays};
 use frame_system::ensure_signed;
 use sp_runtime::ModuleId;
 use sp_runtime::traits::AccountIdConversion;
+use pallet_timestamp as timestamp;
+use orml_utilities::with_transaction_result;
 
 #[cfg(test)]
 mod mock;
@@ -18,24 +20,23 @@ const PALLET_ID: ModuleId = ModuleId(*b"timekeep");
 
 type AccountIdOf<T> = <T as frame_system::Trait>::AccountId;
 type BalanceOf<T> = <<T as Trait>::Currency as Currency<AccountIdOf<T>>>::Balance;
-type MomentOf<T> = <<T as Trait>::Time as Time>::Moment;
+type Rate = u32;
 
-pub trait Trait: frame_system::Trait {
+pub trait Trait: timestamp::Trait {
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 	type Currency: Currency<Self::AccountId>;
-	type Time: Time;
 }
 
 decl_storage! {
 	trait Store for Module<T: Trait> as TimeKeeper {
 		/// Store the rate for an account
-		pub Rates get(fn rates): map hasher(blake2_128_concat) T::AccountId => Option<BalanceOf<T>>;
+		pub Rates get(fn rates): map hasher(blake2_128_concat) T::AccountId => Option<Rate>;
 		/// Store a whitelist of administrators
 		pub Administrators get(fn adminstrators): map hasher(blake2_128_concat) T::AccountId => Option<bool>;
 		/// Store a list of creditors for work done
 		pub Creditors get(fn creditors): map hasher(blake2_128_concat) T::AccountId => Option<BalanceOf<T>>;
 		/// Map whether account is in or out
-		pub Entered get(fn entered): map hasher(blake2_128_concat) T::AccountId => Option<MomentOf<T>>;
+		pub Entered get(fn entered): map hasher(blake2_128_concat) T::AccountId => Option<T::Moment>;
 	}
 }
 
@@ -45,9 +46,9 @@ decl_event!(
 	Balance = BalanceOf<T> {
 		/// An account has been registered with an hourly rate
 		/// [account, value]
-		AccountRegistered(AccountId, Option<Balance>),
+		AccountRegistered(AccountId, Option<Rate>),
 		AccountWithdrawl(AccountId, Balance),
-		AccountUpdated(AccountId, Option<Balance>),
+		AccountUpdated(AccountId, Option<Rate>),
 		AccountEntered(AccountId),
 		AccountExited(AccountId),
 		Deposit(Balance),
@@ -60,6 +61,8 @@ decl_error! {
 		FailedToEnter,
 		FailedToExit,
 		FailedToWithdraw,
+		FailedCredit,
+		FailedInsufficientCredit
 	}
 }
 
@@ -70,23 +73,23 @@ decl_module! {
 		fn deposit_event() = default;
 
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn register_account(origin, account: T::AccountId, value: Option<BalanceOf<T>>) -> dispatch::DispatchResult {
+		pub fn register_account(origin, account: T::AccountId, rate: Option<Rate>) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 			// TODO check if the origin is in the whitelist
-			Rates::<T>::mutate_exists(&account, |v| *v = value);
+			Rates::<T>::mutate_exists(&account, |r| *r = rate);
 			// Emit an event.
-			Self::deposit_event(RawEvent::AccountRegistered(account, value));
+			Self::deposit_event(RawEvent::AccountRegistered(account, rate));
 			// Return a successful DispatchResult
 			Ok(())
 		}
 
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn update_rate_for_account(origin, account: T::AccountId, value: Option<BalanceOf<T>>) -> dispatch::DispatchResult {
+		pub fn update_rate_for_account(origin, account: T::AccountId, rate: Option<Rate>) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 			// TODO who here has to be a transaction signed by an administrator and the account holder
-			Rates::<T>::mutate_exists(&account, |v| *v = value);
+			Rates::<T>::mutate_exists(&account, |r| *r = rate);
 			// Emit an event.
-			Self::deposit_event(RawEvent::AccountUpdated(account, value));
+			Self::deposit_event(RawEvent::AccountUpdated(account, rate));
 			// Return a successful DispatchResult
 			Ok(())
 		}
@@ -96,7 +99,7 @@ decl_module! {
 			let who = ensure_signed(origin)?;
 			T::Currency::transfer(
 				&who,
-				&Self::account_id(0),
+				&Self::account_id(),
 				value.unwrap(),
 				ExistenceRequirement::AllowDeath
 			)?;
@@ -107,27 +110,29 @@ decl_module! {
 		}
 
 		#[weight = (10_000, DispatchClass::Normal, Pays::No)]
-		pub fn withdraw(origin) -> dispatch::DispatchResult {
+		pub fn withdraw(origin, amount: BalanceOf<T>) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
-			match Self::creditors(&who) {
-				Some(balance) => {
-					Creditors::<T>::mutate_exists(&who, |b| *b = None);
+			
+			Creditors::<T>::try_mutate_exists(who.clone(), |credit| -> dispatch::DispatchResult {
+				let credit = credit.take().ok_or(Error::<T>::FailedCredit)?;
+				ensure!(credit >= amount.into(), Error::<T>::FailedInsufficientCredit);
+				
+				with_transaction_result(|| {
+					
 					T::Currency::transfer(
-						&Self::account_id(0),
+						&Self::account_id(),
 						&who,
-						balance,
+						amount,
 						ExistenceRequirement::AllowDeath
 					)?;
 
-					// Emit an event.
-					Self::deposit_event(RawEvent::AccountWithdrawl(who, balance));
-					// Return a successful DispatchResult
+					Self::deposit_event(RawEvent::AccountWithdrawl(who, amount));
+				
 					Ok(())
-				},
-				_ => {
-					Err(Error::<T>::FailedToWithdraw)?
-				}
-			}
+				})
+			})?;
+
+			Ok(())
 		}
 
 		#[weight = (10_000, DispatchClass::Normal, Pays::No)]
@@ -138,7 +143,7 @@ decl_module! {
 					Err(Error::<T>::FailedToEnter)?
 				},
 				_ => {
-					let now = T::Time::now();
+					let now = <timestamp::Module<T>>::get();
 					Entered::<T>::mutate_exists(&who, |v| *v = Some(now));
 					// Emit an event.
 					Self::deposit_event(RawEvent::AccountEntered(who));
@@ -153,12 +158,14 @@ decl_module! {
 			let who = ensure_signed(origin)?;
 			match Self::entered(&who) {
 				Some(timestamp) => {
+					let now = <timestamp::Module<T>>::get();
+					let diff = now - timestamp;
 					Entered::<T>::mutate_exists(&who, |v| *v = None);
 					let rate = Self::rates(&who);
 					match rate {
 						Some(r) => {
 							Creditors::<T>::mutate_exists(&who, |credit| {
-								*credit = Some(credit.unwrap_or(0.into()) + r)
+								*credit = Some(Self::calculate_credit(diff, r));
 							});
 						},
 						_ => ()
@@ -178,11 +185,14 @@ decl_module! {
 }
 
 impl<T: Trait> Module<T> {
-	/// The account ID
-	///
-	/// This actually does computation. If you need to keep using it, then make sure you cache the
-	/// value and only call this once.
-	pub fn account_id(index: u32) -> T::AccountId {
-		PALLET_ID.into_sub_account(index)
+
+	pub fn account_id() -> T::AccountId {
+		PALLET_ID.into_account()
+	}
+
+	pub fn calculate_credit(time: T::Moment, rate: Rate) -> BalanceOf<T> {
+		let amount = TryInto::<u32>::try_into(time).unwrap_or(0) * rate;
+		amount.into()
 	}
 }
+

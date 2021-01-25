@@ -3439,6 +3439,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77af24da69f9d9341038eba93a073b1fdaaa1b788221b00a69bce9e762cb32de"
 
 [[package]]
+name = "orml-utilities"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12b86e9fe38ffd16632353a497483fc76692999ee0b5216152e70773e7f108dd"
+dependencies = [
+ "frame-support",
+ "parity-scale-codec",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "owning_ref"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3594,7 +3607,9 @@ version = "2.0.0"
 dependencies = [
  "frame-support",
  "frame-system",
+ "orml-utilities",
  "pallet-balances",
+ "pallet-timestamp",
  "parity-scale-codec",
  "sp-core",
  "sp-io",
