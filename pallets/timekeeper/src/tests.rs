@@ -3,7 +3,7 @@ use crate::{
 	mock::*
 };
 use frame_support::{assert_ok, assert_noop};
-
+use frame_support::{debug};
 const CHECKER : u64 = 101;
 const ADMIN : u64 = 100;
 const AMOUNT : u64 = 10;

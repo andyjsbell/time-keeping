@@ -1,5 +1,5 @@
 use crate::{Module, Trait};
-use sp_core::H256;
+use sp_core::{H256, storage::TrackedStorageKey};
 use frame_support::{impl_outer_origin, impl_outer_event, parameter_types, weights::Weight};
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup}, testing::Header, Perbill,
@@ -61,6 +61,7 @@ impl frame_system::Trait for Test {
 
 parameter_types! {
 	pub const ExistentialDeposit: u64 = 1;
+	pub const MinimumPeriod: u64 = 5;
 }
 impl pallet_balances::Trait for Test {
 	type MaxLocks = ();
@@ -69,6 +70,13 @@ impl pallet_balances::Trait for Test {
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
+	type WeightInfo = ();
+}
+
+impl pallet_timestamp::Trait for Test {
+	type Moment = u64;
+	type OnTimestampSet = ();
+	type MinimumPeriod = MinimumPeriod;
 	type WeightInfo = ();
 }
 
