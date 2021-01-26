@@ -1,6 +1,12 @@
 use crate::{Module, Trait};
-use sp_core::{H256, storage::TrackedStorageKey};
-use frame_support::{impl_outer_origin, impl_outer_event, parameter_types, weights::Weight};
+use sp_core::H256;
+use frame_support::{
+	impl_outer_origin, 
+	impl_outer_event, 
+	parameter_types, 
+	weights::Weight,
+	traits::{OnInitialize, OnFinalize},
+};
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup}, testing::Header, Perbill,
 };
@@ -88,6 +94,7 @@ impl Trait for Test {
 pub type TimeKeeperModule = Module<Test>;
 pub type System = frame_system::Module<Test>;
 pub type Balances = pallet_balances::Module<Test>;
+pub type Timestamp = pallet_timestamp::Module<Test>;
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
@@ -106,4 +113,17 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 
 pub fn last_event() -> Event {
     System::events().last().unwrap().event.clone()
+}
+
+
+pub fn run_to_block(n: u64) {
+    while System::block_number() < n {
+        // TimeKeeperModule::on_finalize(System::block_number());
+        System::on_finalize(System::block_number());
+        System::set_block_number(System::block_number() + 1);
+        System::on_initialize(System::block_number());
+        // TimeKeeperModule::on_initialize(System::block_number());
+	}
+	
+	Timestamp::set_timestamp(n);
 }
