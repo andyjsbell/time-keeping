@@ -2,7 +2,7 @@ use crate::{
 	RawEvent, 
 	mock::*
 };
-use frame_support::{assert_ok, assert_noop};
+use frame_support::{assert_ok, assert_noop, assert_err};
 
 const BOB : u64 = 101;
 const ALICE : u64 = 100;
@@ -14,6 +14,9 @@ fn it_works_registering_a_user() {
 	new_test_ext().execute_with(|| {
 		// Register user BOB at RATE
 		assert_ok!(TimeKeeperModule::register_account(Origin::signed(ALICE), BOB, Some(RATE)));
+		// We shouldn't be able to register the same account again
+		assert_err!(TimeKeeperModule::register_account(Origin::signed(ALICE), BOB, Some(RATE)), 
+					"trying to register an existing account");
 		// Check we have set the RATE for BOB
 		assert_eq!(TimeKeeperModule::rates(&BOB), Some(RATE));
 		// Confirm we sent the event out for BOB at RATE set
