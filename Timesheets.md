@@ -17,9 +17,9 @@ payment to be sent on a daily basis.
 ### Storage
 
 - Administrators => list of accounts who can administer users and change rates
-- Map of Account => hourly rate
-- Map of Account => number of hours not paid
-- Map of Account => Timesheet entry
+- Map of Account => hourly rate (Rates)
+- Map of Account => number of hours not paid (Creditors)
+- Map of Account => Timestamp (Entered)
 
 ### Events
 

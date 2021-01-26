@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use std::convert::TryInto;
+use frame_support::sp_std::convert::TryInto;
 
 use frame_support::{debug, decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, traits::{Currency, ExistenceRequirement, Get, WithdrawReasons, WithdrawReason}};
 use frame_support::weights::{DispatchClass, Pays};
