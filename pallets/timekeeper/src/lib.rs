@@ -1,6 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use debug::{debug, info};
+use dispatch::DispatchResult;
 use frame_support::sp_std::convert::TryInto;
 
 use frame_support::{debug, decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, traits::{Currency, ExistenceRequirement, Get, WithdrawReasons, WithdrawReason}};
@@ -139,11 +140,14 @@ decl_module! {
 		#[weight = (10_000, DispatchClass::Normal, Pays::No)]
 		pub fn enter_account(origin) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
+			Self::check_if_registered(&who)?;
+
 			match Self::entered(&who) {
 				Some(_) => {
+					// Already entered
 					Err(Error::<T>::FailedToEnter)?
 				},
-				_ => {
+				None => {
 					let now = <timestamp::Module<T>>::get();
 					Entered::<T>::mutate_exists(&who, |v| *v = Some(now));
 					// Emit an event.
@@ -157,6 +161,8 @@ decl_module! {
 		#[weight = (10_000, DispatchClass::Normal, Pays::No)]
 		pub fn exit_account(origin) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
+			Self::check_if_registered(&who)?;
+			
 			match Self::entered(&who) {
 				Some(timestamp) => {
 					let now = <timestamp::Module<T>>::get();
@@ -189,6 +195,11 @@ impl<T: Trait> Module<T> {
 
 	pub fn account_id() -> T::AccountId {
 		PALLET_ID.into_account()
+	}
+
+	pub fn check_if_registered(account: &T::AccountId) -> DispatchResult {
+		ensure!(Rates::<T>::contains_key(account), "account not registered");
+		Ok(())
 	}
 
 	pub fn calculate_credit(time: T::Moment, rate: BalanceOf<T>) -> BalanceOf<T> {
