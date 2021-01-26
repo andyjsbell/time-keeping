@@ -1,5 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use debug::{debug, info};
 use frame_support::sp_std::convert::TryInto;
 
 use frame_support::{debug, decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, traits::{Currency, ExistenceRequirement, Get, WithdrawReasons, WithdrawReason}};
@@ -20,7 +21,6 @@ const PALLET_ID: ModuleId = ModuleId(*b"timekeep");
 
 type AccountIdOf<T> = <T as frame_system::Trait>::AccountId;
 type BalanceOf<T> = <<T as Trait>::Currency as Currency<AccountIdOf<T>>>::Balance;
-type Rate = u32;
 
 pub trait Trait: timestamp::Trait {
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
@@ -30,7 +30,7 @@ pub trait Trait: timestamp::Trait {
 decl_storage! {
 	trait Store for Module<T: Trait> as TimeKeeper {
 		/// Store the rate for an account
-		pub Rates get(fn rates): map hasher(blake2_128_concat) T::AccountId => Option<Rate>;
+		pub Rates get(fn rates): map hasher(blake2_128_concat) T::AccountId => Option<BalanceOf<T>>;
 		/// Store a whitelist of administrators
 		pub Administrators get(fn adminstrators): map hasher(blake2_128_concat) T::AccountId => Option<bool>;
 		/// Store a list of creditors for work done
@@ -46,9 +46,9 @@ decl_event!(
 	Balance = BalanceOf<T> {
 		/// An account has been registered with an hourly rate
 		/// [account, value]
-		AccountRegistered(AccountId, Option<Rate>),
+		AccountRegistered(AccountId, Option<Balance>),
 		AccountWithdrawl(AccountId, Balance),
-		AccountUpdated(AccountId, Option<Rate>),
+		AccountUpdated(AccountId, Option<Balance>),
 		AccountEntered(AccountId),
 		AccountExited(AccountId),
 		Deposit(Balance),
@@ -73,7 +73,7 @@ decl_module! {
 		fn deposit_event() = default;
 
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn register_account(origin, account: T::AccountId, rate: Option<Rate>) -> dispatch::DispatchResult {
+		pub fn register_account(origin, account: T::AccountId, rate: Option<BalanceOf<T>>) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 			// TODO check if the origin is in the whitelist
 			Rates::<T>::mutate_exists(&account, |r| *r = rate);
@@ -84,7 +84,7 @@ decl_module! {
 		}
 
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn update_rate_for_account(origin, account: T::AccountId, rate: Option<Rate>) -> dispatch::DispatchResult {
+		pub fn update_rate_for_account(origin, account: T::AccountId, rate: Option<BalanceOf<T>>) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 			// TODO who here has to be a transaction signed by an administrator and the account holder
 			Rates::<T>::mutate_exists(&account, |r| *r = rate);
@@ -190,9 +190,12 @@ impl<T: Trait> Module<T> {
 		PALLET_ID.into_account()
 	}
 
-	pub fn calculate_credit(time: T::Moment, rate: Rate) -> BalanceOf<T> {
-		let amount = TryInto::<u32>::try_into(time).unwrap_or(0) * rate;
-		amount.into()
+	pub fn calculate_credit(time: T::Moment, rate: BalanceOf<T>) -> BalanceOf<T> {
+		let t : u32 = TryInto::<u32>::try_into(time).unwrap_or(0);
+		let r : u32 = TryInto::<u32>::try_into(rate).unwrap_or(0);
+		let credit = t * r;
+		info!("time={} rate={} credit={}", t, r, credit);
+		credit.into()
 	}
 }
 
