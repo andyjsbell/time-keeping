@@ -74,7 +74,7 @@ decl_module! {
 
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn register_account(origin, account: T::AccountId, rate: Option<BalanceOf<T>>) -> dispatch::DispatchResult {
-			let who = ensure_signed(origin)?;
+			// let who = ensure_signed(origin)?;
 			ensure!(!Rates::<T>::contains_key(&account), "trying to register an existing account");
 			// TODO check if the origin is in the whitelist
 			Rates::<T>::mutate_exists(&account, |r| *r = rate);
@@ -86,7 +86,7 @@ decl_module! {
 
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn update_rate_for_account(origin, account: T::AccountId, rate: Option<BalanceOf<T>>) -> dispatch::DispatchResult {
-			let who = ensure_signed(origin)?;
+			// let who = ensure_signed(origin)?;
 			// TODO who here has to be a transaction signed by an administrator and the account holder
 			Rates::<T>::mutate_exists(&account, |r| *r = rate);
 			// Emit an event.
