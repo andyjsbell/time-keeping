@@ -55,3 +55,11 @@ fn it_checks_in_and_out() {
 		assert_eq!(TimeKeeperModule::creditors(&BOB), Some(RATE * BLOCK_JUMP));
 	});
 }
+
+#[test]
+fn check_credit_calculation() {
+	let min: u32 = 60_000;
+	let rate = 10; // 1 x 10e-11 Units
+	assert_eq!(TimeKeeperModule::calculate_credit((60*min).into(), rate.into()), rate);
+	assert_eq!(TimeKeeperModule::calculate_credit((30*min).into(), rate.into()), rate / 2);
+}

@@ -30,7 +30,8 @@ pub trait Trait: timestamp::Trait {
 
 decl_storage! {
 	trait Store for Module<T: Trait> as TimeKeeper {
-		/// Store the rate for an account
+		/// Store the rate per hour for an account
+		/// 1.0 unit is 1+e12
 		pub Rates get(fn rates): map hasher(blake2_128_concat) T::AccountId => Option<BalanceOf<T>>;
 		/// Store a whitelist of administrators
 		pub Administrators get(fn adminstrators): map hasher(blake2_128_concat) T::AccountId => Option<bool>;
@@ -203,11 +204,10 @@ impl<T: Trait> Module<T> {
 	}
 
 	pub fn calculate_credit(time: T::Moment, rate: BalanceOf<T>) -> BalanceOf<T> {
-		let t : u32 = TryInto::<u32>::try_into(time).unwrap_or(0);
-		let r : u32 = TryInto::<u32>::try_into(rate).unwrap_or(0);
-		let credit = t * r;
-		info!("time={} rate={} credit={}", t, r, credit);
-		credit.into()
+		let t : u64 = TryInto::<u64>::try_into(time).unwrap_or(0);
+		let r : u64 = TryInto::<u64>::try_into(rate).unwrap_or(0);
+		let credit = (t * r) / (60 * 60 * 1000);
+		TryInto::<BalanceOf<T>>::try_into(credit).unwrap_or(0.into())
 	}
 }
 
