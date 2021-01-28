@@ -1,5 +1,5 @@
-- [ ] Set hourly rate unit
-- [ ] Calculate timestamp in seconds to apply credit to account
+- [*] Set hourly rate unit
+- [*] Calculate timestamp in seconds to apply credit to account
 - [ ] Set administrators (Sudo)
 - [ ] Remove administrators (Sudo)
 - [ ] Multi signature to change rate
