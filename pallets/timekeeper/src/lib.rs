@@ -6,7 +6,7 @@ use frame_support::sp_std::convert::TryInto;
 
 use frame_support::{debug, decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, traits::{Currency, ExistenceRequirement, Get, WithdrawReasons, WithdrawReason}};
 use frame_support::weights::{DispatchClass, Pays};
-use frame_system::ensure_signed;
+use frame_system::{ensure_signed, ensure_root};
 use sp_runtime::ModuleId;
 use sp_runtime::traits::AccountIdConversion;
 use pallet_timestamp as timestamp;
@@ -30,8 +30,7 @@ pub trait Trait: timestamp::Trait {
 
 decl_storage! {
 	trait Store for Module<T: Trait> as TimeKeeper {
-		/// Store the rate per hour for an account
-		/// 1.0 unit is 1+e12
+		/// Store the rate for an account
 		pub Rates get(fn rates): map hasher(blake2_128_concat) T::AccountId => Option<BalanceOf<T>>;
 		/// Store a whitelist of administrators
 		pub Administrators get(fn adminstrators): map hasher(blake2_128_concat) T::AccountId => Option<bool>;
@@ -76,7 +75,7 @@ decl_module! {
 
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn register_account(origin, account: T::AccountId, rate: Option<BalanceOf<T>>) -> dispatch::DispatchResult {
-			// let who = ensure_signed(origin)?;
+			let _ = ensure_root(origin)?;
 			ensure!(!Rates::<T>::contains_key(&account), "trying to register an existing account");
 			// TODO check if the origin is in the whitelist
 			Rates::<T>::mutate_exists(&account, |r| *r = rate);
