@@ -8,9 +8,11 @@ use frame_support::{debug, decl_error, decl_event, decl_module, decl_storage, di
 use frame_support::weights::{DispatchClass, Pays};
 use frame_system::{ensure_signed, ensure_root};
 use sp_runtime::ModuleId;
-use sp_runtime::traits::AccountIdConversion;
+use sp_runtime::traits::{AccountIdConversion, Hash};
 use pallet_timestamp as timestamp;
+use pallet_access as access;
 use orml_utilities::with_transaction_result;
+use sp_core::H256;
 
 #[cfg(test)]
 mod mock;
@@ -19,21 +21,21 @@ mod mock;
 mod tests;
 
 const PALLET_ID: ModuleId = ModuleId(*b"timekeep");
-
 type AccountIdOf<T> = <T as frame_system::Trait>::AccountId;
 type BalanceOf<T> = <<T as Trait>::Currency as Currency<AccountIdOf<T>>>::Balance;
+type HashOf<T> = <T as frame_system::Trait>::Hash;
 
-pub trait Trait: timestamp::Trait {
+pub trait Trait: timestamp::Trait + access::Trait {
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 	type Currency: Currency<Self::AccountId>;
+	type Admin: Get<HashOf<Self>>;
+	type Registrar: Get<HashOf<Self>>;
 }
 
 decl_storage! {
 	trait Store for Module<T: Trait> as TimeKeeper {
 		/// Store the rate for an account
 		pub Rates get(fn rates): map hasher(blake2_128_concat) T::AccountId => Option<BalanceOf<T>>;
-		/// Store a whitelist of administrators
-		pub Administrators get(fn adminstrators): map hasher(blake2_128_concat) T::AccountId => Option<bool>;
 		/// Store a list of creditors for work done
 		pub Creditors get(fn creditors): map hasher(blake2_128_concat) T::AccountId => Option<BalanceOf<T>>;
 		/// Map whether account is in or out
@@ -63,7 +65,10 @@ decl_error! {
 		FailedToExit,
 		FailedToWithdraw,
 		FailedCredit,
-		FailedInsufficientCredit
+		FailedInsufficientCredit,
+		ErrorRegistrarRoleRequired,
+		ErrorAdminRoleRequired,
+		ErrorAlreadyRegistered,
 	}
 }
 
@@ -72,16 +77,13 @@ decl_module! {
 		type Error = Error<T>;
 
 		fn deposit_event() = default;
-
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn register_account(origin, account: T::AccountId, rate: Option<BalanceOf<T>>) -> dispatch::DispatchResult {
-			let _ = ensure_root(origin)?;
-			ensure!(!Rates::<T>::contains_key(&account), "trying to register an existing account");
-			// TODO check if the origin is in the whitelist
+			let who = ensure_signed(origin)?;
+			ensure!(!Rates::<T>::contains_key(&account), Error::<T>::ErrorAlreadyRegistered);
+			ensure!(<access::Module<T>>::has_role(T::Registrar::get(), who), Error::<T>::ErrorRegistrarRoleRequired);
 			Rates::<T>::mutate_exists(&account, |r| *r = rate);
-			// Emit an event.
 			Self::deposit_event(RawEvent::AccountRegistered(account, rate));
-			// Return a successful DispatchResult
 			Ok(())
 		}
 
