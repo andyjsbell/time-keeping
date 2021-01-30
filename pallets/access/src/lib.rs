@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 use frame_support::{decl_error, decl_event, decl_module, dispatch, decl_storage, ensure, traits::{Get}};
-use frame_system::{ensure_signed};
+use frame_system::{ensure_signed, ensure_root};
 
 #[cfg(test)]
 mod mock;
@@ -73,6 +73,18 @@ decl_module! {
 			ensure!(account == who.clone(), Error::<T>::RenounceSelf);
 			Self::remove_member(role, account.clone())?;
 			Self::deposit_event(RawEvent::RoleRevoked(role, account, who));
+		}
+
+		#[weight = 10_000 + T::DbWeight::get().writes(1)]
+		pub fn set_role_for_account(origin, role: T::Hash, account: T::AccountId) {
+			// let who = ensure_root(origin)?;
+			Self::setup_role(role, account)?;
+		}
+
+		#[weight = 10_000 + T::DbWeight::get().writes(1)]
+		pub fn set_role_for_role(origin, role: T::Hash, admin_role: T::Hash) {
+			// let who = ensure_root(origin)?;
+			Self::set_role_admin(role, admin_role);
 		}
 	}
 }
