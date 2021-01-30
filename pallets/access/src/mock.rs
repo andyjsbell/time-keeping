@@ -5,7 +5,6 @@ use frame_support::{
 	impl_outer_event, 
 	parameter_types, 
 	weights::Weight,
-	traits::{OnInitialize, OnFinalize},
 };
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup}, testing::Header, Perbill,
@@ -88,17 +87,4 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 
 pub fn last_event() -> Event {
     System::events().last().unwrap().event.clone()
-}
-
-
-pub fn run_to_block(n: u64) {
-    while System::block_number() < n {
-        // AccessModule::on_finalize(System::block_number());
-        System::on_finalize(System::block_number());
-        System::set_block_number(System::block_number() + 1);
-        System::on_initialize(System::block_number());
-        // AccessModule::on_initialize(System::block_number());
-	}
-	
-	Timestamp::set_timestamp(n);
 }
