@@ -1,4 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+use dispatch::DispatchResult;
 use frame_support::{decl_error, decl_event, decl_module, dispatch, decl_storage, ensure, traits::{Get}};
 use frame_system::{ensure_signed, ensure_root};
 
@@ -11,7 +12,7 @@ type HashOf<T> = <T as frame_system::Trait>::Hash;
 type AccountIdOf<T> = <T as frame_system::Trait>::AccountId;
 
 pub trait Trait: frame_system::Trait {
-	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
+	
 }
 
 decl_storage! {
@@ -22,20 +23,6 @@ decl_storage! {
 			map hasher(blake2_128_concat) HashOf<T> => Vec<AccountIdOf<T>>;
 	}
 }
-
-decl_event!(
-	pub enum Event<T>
-	where 
-	AccountId = <T as frame_system::Trait>::AccountId,
-	<T as frame_system::Trait>::Hash {
-		/// Account is granted role \[role, previous role, new role\]
-		RoleAdminChanged(Hash, Hash, Hash),
-		/// Account is granted role \[role, account granted, calling account\]
-		RoleGranted(Hash, AccountId, AccountId),
-		/// Account is revoked role \[role, account granted, calling account\]
-		RoleRevoked(Hash, AccountId, AccountId),	
-	}
-);
 
 decl_error! {
 	pub enum Error for Module<T: Trait> {
@@ -48,48 +35,28 @@ decl_error! {
 
 decl_module! {
 	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
-		type Error = Error<T>;
-		fn deposit_event() = default;
-
-		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn grant_role(origin, role: T::Hash, account: T::AccountId) {
-			let who = ensure_signed(origin)?;
-			ensure!(Self::has_role(Self::admin_roles(role), who.clone()), Error::<T>::AdminRequired);
-			Self::setup_role(role, account.clone())?;
-			Self::deposit_event(RawEvent::RoleGranted(role, account, who));
-		}
-
-		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn revoke_role(origin, role: T::Hash, account: T::AccountId) {
-			let who = ensure_signed(origin)?;
-			ensure!(Self::has_role(Self::admin_roles(role), who.clone()), Error::<T>::AdminRequired);
-			Self::remove_member(role, account.clone())?;
-			Self::deposit_event(RawEvent::RoleRevoked(role, account, who));
-		}
-
-		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn renounce_role(origin, role: T::Hash, account: T::AccountId) {
-			let who = ensure_signed(origin)?;
-			ensure!(account == who.clone(), Error::<T>::RenounceSelf);
-			Self::remove_member(role, account.clone())?;
-			Self::deposit_event(RawEvent::RoleRevoked(role, account, who));
-		}
-
-		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn set_role_for_account(origin, role: T::Hash, account: T::AccountId) {
-			// let who = ensure_root(origin)?;
-			Self::setup_role(role, account)?;
-		}
-
-		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn set_role_for_role(origin, role: T::Hash, admin_role: T::Hash) {
-			// let who = ensure_root(origin)?;
-			Self::set_role_admin(role, admin_role);
-		}
 	}
 }
 
 impl<T: Trait> Module<T> {
+
+	pub fn grant_role(caller: T::AccountId, role: T::Hash, account: T::AccountId) -> dispatch::DispatchResult {
+		ensure!(Self::has_role(Self::admin_roles(role), caller), Error::<T>::AdminRequired);
+		Self::setup_role(role, account)?;
+		Ok(())
+	}
+
+	pub fn revoke_role(caller: T::AccountId, role: T::Hash, account: T::AccountId) -> dispatch::DispatchResult {
+		ensure!(Self::has_role(Self::admin_roles(role), caller), Error::<T>::AdminRequired);
+		Self::remove_member(role, account)?;
+		Ok(())
+	}
+
+	pub fn renounce_role(caller: T::AccountId, role: T::Hash, account: T::AccountId) -> dispatch::DispatchResult {
+		ensure!(account == caller, Error::<T>::RenounceSelf);
+		Self::remove_member(role, account)?;
+		Ok(())
+	}
 
 	pub fn has_role(role: HashOf<T>, account: AccountIdOf<T>) -> bool {
 		Self::roles(role).contains(&account)

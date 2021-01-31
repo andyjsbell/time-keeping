@@ -18,12 +18,6 @@ mod access {
 	pub use super::super::*;
 }
 
-impl_outer_event! {
-	pub enum Event for Test {
-		frame_system<T>,
-		access<T>,
-	}
-}
 // Configure a mock runtime to test the pallet.
 
 #[derive(Clone, Eq, PartialEq)]
@@ -46,7 +40,7 @@ impl frame_system::Trait for Test {
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
-	type Event = Event;
+	type Event = ();
 	type BlockHashCount = BlockHashCount;
 	type MaximumBlockWeight = MaximumBlockWeight;
 	type DbWeight = ();
@@ -68,7 +62,6 @@ parameter_types! {
 }
 
 impl Trait for Test {
-	type Event = Event;
 }
 
 pub type AccessModule = Module<Test>;
@@ -83,8 +76,4 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut t: sp_io::TestExternalities = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap().into();
     t.execute_with(|| System::set_block_number(1) );
     t
-}
-
-pub fn last_event() -> Event {
-    System::events().last().unwrap().event.clone()
 }

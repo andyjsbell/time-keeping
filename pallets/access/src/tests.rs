@@ -1,5 +1,4 @@
 use crate::{
-	RawEvent, 
 	Error,
 	mock::*
 };
@@ -25,10 +24,8 @@ fn it_sets_roles() {
 		// Check we have this set in storage
 		assert_eq!(AccessModule::admin_roles(WRITER_ROLE), ADMIN_ROLE);
 		// Grant BOB WRITER ROLE by ALICE
-		assert_ok!(AccessModule::grant_role(Origin::signed(ALICE), WRITER_ROLE, BOB));
-		// Event emitted
-		assert_eq!(last_event(), Event::access(RawEvent::RoleGranted(WRITER_ROLE, BOB, ALICE)));
+		assert_ok!(AccessModule::grant_role(ALICE, WRITER_ROLE, BOB));
 		// Grant CHARLIE WRITE ROLE by BOB
-		assert_noop!(AccessModule::grant_role(Origin::signed(BOB), WRITER_ROLE, CHARLIE), Error::<Test>::AdminRequired);
+		assert_noop!(AccessModule::grant_role(BOB, WRITER_ROLE, CHARLIE), Error::<Test>::AdminRequired);
 	});
 }
