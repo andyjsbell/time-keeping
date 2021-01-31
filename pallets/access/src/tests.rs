@@ -19,6 +19,7 @@ fn it_sets_roles() {
 		assert_ok!(AccessModule::setup_role(ADMIN_ROLE, ALICE));
 		assert_eq!(AccessModule::roles(WRITER_ROLE).len(), 0);
 		assert_eq!(AccessModule::roles(ADMIN_ROLE).len(), 1);
+		assert_eq!(AccessModule::roles(ADMIN_ROLE)[0], ALICE);
 		// Set ADMIN, or ALICE, as administrator for WRITER ROLE
 		AccessModule::set_role_admin(ADMIN_ROLE, WRITER_ROLE);
 		// Check we have this set in storage
