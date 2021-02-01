@@ -1,7 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-use dispatch::DispatchResult;
-use frame_support::{decl_error, decl_event, decl_module, dispatch, decl_storage, ensure, traits::{Get}};
-use frame_system::{ensure_signed, ensure_root};
+use frame_support::{decl_error, decl_module, dispatch, decl_storage, ensure, traits::{Get}};
+use sp_std::prelude::*;
 
 #[cfg(test)]
 mod mock;
@@ -70,11 +69,11 @@ impl<T: Trait> Module<T> {
         Self::admin_roles(role)
 	}
 	
-	fn set_role_admin(role: HashOf<T>, admin_role: HashOf<T>) {
+	pub fn set_role_admin(role: HashOf<T>, admin_role: HashOf<T>) {
 		<AdminRoles<T>>::insert(role, admin_role);
 	}
 
-	fn setup_role(role: HashOf<T>, account: AccountIdOf<T>) -> dispatch::DispatchResult {
+	pub fn setup_role(role: HashOf<T>, account: AccountIdOf<T>) -> dispatch::DispatchResult {
 		Self::add_member(role, account.clone())?;
 		Ok(())
 	}
