@@ -3,7 +3,7 @@
 use dispatch::DispatchResult;
 use frame_support::sp_std::convert::TryInto;
 
-use frame_support::{debug, decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, traits::{Currency, ExistenceRequirement, Get}};
+use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, traits::{Currency, ExistenceRequirement, Get}};
 use frame_support::weights::{DispatchClass, Pays};
 use frame_system::{ensure_signed, ensure_root};
 use sp_runtime::ModuleId;
@@ -22,7 +22,6 @@ mod tests;
 const PALLET_ID: ModuleId = ModuleId(*b"timekeep");
 type AccountIdOf<T> = <T as frame_system::Trait>::AccountId;
 type BalanceOf<T> = <<T as Trait>::Currency as Currency<AccountIdOf<T>>>::Balance;
-type HashOf<T> = <T as frame_system::Trait>::Hash;
 
 pub trait Trait: timestamp::Trait + access::Trait {
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
@@ -31,8 +30,8 @@ pub trait Trait: timestamp::Trait + access::Trait {
 
 decl_storage! {
 	trait Store for Module<T: Trait> as Timekeeper {
-		pub AdminRole get(fn admin_role): HashOf<T>;
-		pub RegistrarRole get(fn registrar_role): HashOf<T>;
+		pub AdminRole get(fn admin_role): T::Hash;
+		pub RegistrarRole get(fn registrar_role): T::Hash;
 		/// Store the rate for an account
 		pub Rates get(fn rates): map hasher(blake2_128_concat) T::AccountId => Option<BalanceOf<T>>;
 		/// Store a list of creditors for work done
@@ -42,11 +41,13 @@ decl_storage! {
 	}
 	add_extra_genesis {
 		build(|_config| {
-			let admin = T::Hashing::hash("administrator".as_bytes());
-			let registrar = T::Hashing::hash("registrar".as_bytes());
+			let admin = T::Hashing::hash("timekeeper-administrator".as_bytes());
+			let registrar = T::Hashing::hash("timekeeper-registrar".as_bytes());
+			// Create the role "administrator" and "registrar", setting the role "admin" as admin of role "registrar"
+			// We would need to set an account to the "administrator" role which we would do with a sudo call
+			// These roles then can be assigned users with calls on the access pallet
 			AdminRole::<T>::put(admin);
 			RegistrarRole::<T>::put(registrar);
-			<access::Module<T>>::set_role_admin(admin, registrar);
 		})
 	}
 }
@@ -63,6 +64,7 @@ decl_event!(
 		AccountEntered(AccountId),
 		AccountExited(AccountId),
 		Deposit(Balance),
+		AdminSetup(AccountId),
 	}
 );
 
@@ -85,6 +87,16 @@ decl_module! {
 		type Error = Error<T>;
 
 		fn deposit_event() = default;
+
+		#[weight = 10_000 + T::DbWeight::get().writes(1)]
+		pub fn setup(origin, account: T::AccountId) -> dispatch::DispatchResult {
+			let _ = ensure_root(origin)?;
+			<access::Module<T>>::set_admin_for_role(RegistrarRole::<T>::get(), AdminRole::<T>::get()).expect("failed creating roles, make sure these roles aren't in use");
+			<access::Module<T>>::add_account_to_role(AdminRole::<T>::get(), account.clone())?;
+			Self::deposit_event(RawEvent::AdminSetup(account));
+			Ok(())
+		}
+	
 		#[weight = 10_000 + T::DbWeight::get().writes(1)]
 		pub fn register_account(origin, account: T::AccountId, rate: Option<BalanceOf<T>>) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
