@@ -1,18 +1,17 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use debug::{debug, info};
 use dispatch::DispatchResult;
 use frame_support::sp_std::convert::TryInto;
 
-use frame_support::{debug, decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, traits::{Currency, ExistenceRequirement, Get, WithdrawReasons, WithdrawReason}};
+use frame_support::{debug, decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, traits::{Currency, ExistenceRequirement, Get}};
 use frame_support::weights::{DispatchClass, Pays};
 use frame_system::{ensure_signed, ensure_root};
 use sp_runtime::ModuleId;
-use sp_runtime::traits::{AccountIdConversion, Hash};
+use sp_runtime::traits::{AccountIdConversion};
 use pallet_timestamp as timestamp;
 use pallet_access as access;
 use orml_utilities::with_transaction_result;
-use sp_core::H256;
+use sp_runtime::traits::Hash;
 
 #[cfg(test)]
 mod mock;
@@ -28,18 +27,27 @@ type HashOf<T> = <T as frame_system::Trait>::Hash;
 pub trait Trait: timestamp::Trait + access::Trait {
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 	type Currency: Currency<Self::AccountId>;
-	type Admin: Get<HashOf<Self>>;
-	type Registrar: Get<HashOf<Self>>;
 }
 
 decl_storage! {
-	trait Store for Module<T: Trait> as TimeKeeper {
+	trait Store for Module<T: Trait> as Timekeeper {
+		pub AdminRole get(fn admin_role): HashOf<T>;
+		pub RegistrarRole get(fn registrar_role): HashOf<T>;
 		/// Store the rate for an account
 		pub Rates get(fn rates): map hasher(blake2_128_concat) T::AccountId => Option<BalanceOf<T>>;
 		/// Store a list of creditors for work done
 		pub Creditors get(fn creditors): map hasher(blake2_128_concat) T::AccountId => Option<BalanceOf<T>>;
 		/// Map whether account is in or out
 		pub Entered get(fn entered): map hasher(blake2_128_concat) T::AccountId => Option<T::Moment>;
+	}
+	add_extra_genesis {
+		build(|_config| {
+			let admin = T::Hashing::hash("administrator".as_bytes());
+			let registrar = T::Hashing::hash("registrar".as_bytes());
+			AdminRole::<T>::put(admin);
+			RegistrarRole::<T>::put(registrar);
+			<access::Module<T>>::set_role_admin(admin, registrar);
+		})
 	}
 }
 
@@ -81,7 +89,7 @@ decl_module! {
 		pub fn register_account(origin, account: T::AccountId, rate: Option<BalanceOf<T>>) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 			ensure!(!Rates::<T>::contains_key(&account), Error::<T>::ErrorAlreadyRegistered);
-			ensure!(<access::Module<T>>::has_role(T::Registrar::get(), who), Error::<T>::ErrorRegistrarRoleRequired);
+			ensure!(<access::Module<T>>::has_role(RegistrarRole::<T>::get(), who), Error::<T>::ErrorRegistrarRoleRequired);
 			Rates::<T>::mutate_exists(&account, |r| *r = rate);
 			Self::deposit_event(RawEvent::AccountRegistered(account, rate));
 			Ok(())
