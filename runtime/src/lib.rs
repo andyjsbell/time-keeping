@@ -263,14 +263,13 @@ impl pallet_sudo::Trait for Runtime {
 }
 
 impl pallet_access::Trait for Runtime {
+	type Event = Event;
 }
 
 // /// Configure the timekeeper pallet in pallets/timekeeper.
 impl pallet_timekeeper::Trait for Runtime {
 	type Event = Event;
-	type Currency = Balances;
-	// type Admin = Administrator;
-	// type Registrar = Registrar;	
+	type Currency = Balances;	
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -290,7 +289,7 @@ construct_runtime!(
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
 		// Include the custom logic from the time keeper pallet in the runtime.
 		TimeKeeper: pallet_timekeeper::{Module, Call, Storage, Event<T>, Config},
-		Access: pallet_access::{Module, Call, Storage},
+		Access: pallet_access::{Module, Call, Storage, Event<T>},
 	}
 );
 
