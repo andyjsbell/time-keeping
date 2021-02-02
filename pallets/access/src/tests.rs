@@ -25,7 +25,11 @@ fn it_sets_roles() {
 		assert_eq!(AccessModule::admin_roles(WRITER_ROLE), ADMIN_ROLE);
 		// Grant BOB WRITER ROLE by ALICE
 		assert_ok!(AccessModule::grant_role(ALICE, WRITER_ROLE, BOB));
+		assert!(AccessModule::has_role(WRITER_ROLE, BOB));
+		assert!(!AccessModule::has_role(WRITER_ROLE, ALICE));
+		
 		// Grant CHARLIE WRITE ROLE by BOB
 		assert_noop!(AccessModule::grant_role(BOB, WRITER_ROLE, CHARLIE), Error::<Test>::AdminRequired);
+
 	});
 }
