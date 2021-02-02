@@ -247,8 +247,6 @@ impl pallet_balances::Trait for Runtime {
 
 parameter_types! {
 	pub const TransactionByteFee: Balance = 1;
-	pub const Administrator: Hash = Hash::repeat_byte(1);
-	pub const Registrar: Hash = Hash::repeat_byte(2);	
 }
 
 impl pallet_transaction_payment::Trait for Runtime {
@@ -265,15 +263,14 @@ impl pallet_sudo::Trait for Runtime {
 }
 
 impl pallet_access::Trait for Runtime {
-	type Event = Event;
 }
 
 // /// Configure the timekeeper pallet in pallets/timekeeper.
 impl pallet_timekeeper::Trait for Runtime {
 	type Event = Event;
 	type Currency = Balances;
-	type Admin = Administrator;
-	type Registrar = Registrar;	
+	// type Admin = Administrator;
+	// type Registrar = Registrar;	
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -292,8 +289,8 @@ construct_runtime!(
 		TransactionPayment: pallet_transaction_payment::{Module, Storage},
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
 		// Include the custom logic from the time keeper pallet in the runtime.
-		TimeKeeper: pallet_timekeeper::{Module, Call, Storage, Event<T>},
-		Access: pallet_access::{Module, Call, Storage, Event<T>},
+		TimeKeeper: pallet_timekeeper::{Module, Call, Storage, Event<T>, Config},
+		Access: pallet_access::{Module, Call, Storage},
 	}
 );
 
